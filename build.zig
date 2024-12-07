@@ -1,35 +1,42 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const path = std.fs.path;
-const Builder = std.build.Builder;
 const LibExeObjStep = std.build.LibExeObjStep;
 
 const imgui_build = @import("zig-imgui/imgui_build.zig");
 
 const glslc_command = if (builtin.os.tag == .windows) "tools/win/glslc.exe" else "glslc";
 
-pub fn build(b: *Builder) void {
-    const mode = b.standardReleaseOptions();
+pub fn build(b: *std.Build) void {
+    const optimize = b.standardOptimizeOption(.{});
     const target = b.standardTargetOptions(.{});
 
-    imgui_build.addTestStep(b, "test", mode, target);
+    imgui_build.addTestStep(b, "test", optimize, target);
 
     {
-        const exe = exampleExe(b, "example_glfw_vulkan", mode, target);
+        const exe = exampleExe(b, "example_glfw_vulkan", optimize, target);
         linkGlfw(exe, target);
         linkVulkan(exe, target);
     }
     {
-        const exe = exampleExe(b, "example_glfw_opengl3", mode, target);
+        const exe = exampleExe(b, "example_glfw_opengl3", optimize, target);
         linkGlfw(exe, target);
         linkGlad(exe, target);
     }
 }
 
-fn exampleExe(b: *Builder, comptime name: []const u8, mode: std.builtin.Mode, target: std.zig.CrossTarget) *LibExeObjStep {
-    const exe = b.addExecutable(name, "examples/" ++ name ++ ".zig");
-    exe.setBuildMode(mode);
-    exe.setTarget(target);
+fn exampleExe(
+    b: *std.Build,
+    comptime name: []const u8,
+    optimize: std.builtin.OptimizeMode,
+    target: std.Build.ResolvedTarget,
+) *LibExeObjStep {
+    const exe = b.addExecutable(name, std.Build.ExecutableOptions{
+        .root_source_file = b.path("examples/" ++ name ++ ".zig"),
+        .target = target,
+        .optimize = optimize,
+        .name = name,
+    });
     imgui_build.link(exe);
     exe.install();
 
